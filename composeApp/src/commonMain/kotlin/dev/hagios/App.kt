@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.loadImageBitmap
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Window
 import dev.hagios.plex.Album
 import dev.hagios.plex.Artist
 import dev.hagios.plex.PlexRepository
@@ -34,6 +35,7 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.java.KoinJavaComponent.getKoin
 import java.net.URL
+import kotlin.io.path.pathString
 
 @Composable
 @Preview
@@ -50,12 +52,9 @@ fun App() {
     val settingsRepository: SettingsRepository = getKoin().get()
     val artists = repository.getMusicCollection().collectAsState(emptyList()).value
 
-    LaunchedEffect(convert) {
-        withContext(Dispatchers.IO) {
-            tracksToConvert.forEach { (album, tracksToConvert) ->
-                val artist = artists.first { it.albums.contains(album) }
-                repository.downloadSongs(artist.name, album, tracksToConvert)
-            }
+    if (convert) {
+        ConvertingTracks(tracksToConvert, settingsRepository, repository) {
+            convert = false
         }
     }
 
@@ -105,6 +104,102 @@ fun App() {
                         modifier = Modifier.padding(16.dp),
                         text = { Text("Convert") }
                     )
+                }
+            }
+        }
+    }
+}
+
+enum class ConversionStatus {
+    DOWNLOADING,
+    CONVERTING,
+    DONE
+}
+
+@Composable
+private fun ConvertingTracks(
+    tracksToConvert: MutableMap<Album, List<Track>>,
+    settingsRepository: SettingsRepository,
+    repository: PlexRepository,
+    onClose: () -> Unit
+) {
+    Window(onCloseRequest = onClose, title = "Converting") {
+        MaterialTheme {
+            Scaffold { innerPadding ->
+                Column(Modifier.padding(innerPadding)) {
+                    Text("Converting")
+                    tracksToConvert.forEach { (album, tracks) ->
+                        Row(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
+                            AlbumImage(album, settingsRepository)
+                            Text(modifier = Modifier.padding(start = 8.dp), text = album.title)
+                        }
+
+                        tracks.forEachIndexed { index, track ->
+                            Row(verticalAlignment = CenterVertically, modifier = Modifier.height(IntrinsicSize.Min)) {
+                                Text(
+                                    text = "${index + 1} - ${track.title}",
+                                    modifier = Modifier.padding(start = 4.dp).weight(1f)
+                                )
+                                var progress by remember { mutableStateOf(0F) }
+                                var conversionStatus by remember { mutableStateOf(ConversionStatus.DOWNLOADING) }
+                                LaunchedEffect(Unit) {
+                                    withContext(Dispatchers.IO) {
+                                        val downloadedFile = repository.downloadTrack(track) {
+                                            progress = it.toFloat() / 100
+                                        }
+                                        conversionStatus = ConversionStatus.CONVERTING
+                                        try {
+                                            val file = repository.convertToFlac(downloadedFile, track, album)
+                                            repository.tag(
+                                                filePath = file.pathString,
+                                                artist = album.artist,
+                                                album = album.title,
+                                                title = track.title,
+                                                "$index"
+                                            )
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                        conversionStatus = ConversionStatus.DONE
+                                    }
+                                }
+                                Text(
+                                    text = when (conversionStatus) {
+                                        ConversionStatus.DOWNLOADING -> "Downloading"
+                                        ConversionStatus.CONVERTING -> "Converting"
+                                        ConversionStatus.DONE -> "Done"
+                                    }
+                                )
+                                Spacer(Modifier.width(2.dp))
+                                when (conversionStatus) {
+                                    ConversionStatus.DOWNLOADING -> LinearProgressIndicator(
+                                        progress = progress,
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .padding(vertical = 1.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
+                                    )
+
+                                    ConversionStatus.CONVERTING -> LinearProgressIndicator(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .padding(vertical = 1.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
+                                    )
+
+                                    ConversionStatus.DONE -> LinearProgressIndicator(
+                                        progress = 1f,
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .padding(vertical = 1.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
+                                    )
+                                }
+                                Spacer(Modifier.height(2.dp))
+                            }
+                        }
+                        Divider()
+                    }
                 }
             }
         }

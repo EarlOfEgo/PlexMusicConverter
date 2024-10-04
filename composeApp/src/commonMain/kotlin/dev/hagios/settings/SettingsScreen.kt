@@ -17,6 +17,7 @@ fun SettingsScreen(onClose: () -> Unit) {
     val settingsRepository = getKoin().get<SettingsRepository>()
     var serverUrl by remember { mutableStateOf(settingsRepository.getPlexServerUrl() ?: "") }
     var serverToken by remember { mutableStateOf(settingsRepository.getPlexToken() ?: "") }
+    var targetPath by remember { mutableStateOf(settingsRepository.getTargetPath() ?: "") }
     Window(
         onCloseRequest = onClose,
         title = "Settings",
@@ -39,9 +40,15 @@ fun SettingsScreen(onClose: () -> Unit) {
                         value = serverToken,
                         onValueChange = { serverToken = it },
                         label = { Text("Plex Server Token") })
+                    OutlinedTextField(
+                        value = targetPath,
+                        onValueChange = { targetPath = it },
+                        label = { Text("Target output path") },
+                    )
                     Button(onClick = {
                         settingsRepository.setPlexServerUrl(serverUrl)
                         settingsRepository.setPlexToken(serverToken)
+                        settingsRepository.setTargetPath(targetPath)
                         onClose()
                     }) {
                         Text("Save")

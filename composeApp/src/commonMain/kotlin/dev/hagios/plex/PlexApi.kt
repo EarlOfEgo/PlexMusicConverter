@@ -28,15 +28,16 @@ class PlexApi(
         }
     }
 
-    suspend fun getAlbumsForArtist(libraryId: Int, artistId: String): List<Album> {
-        val albums = httpClient.get("/library/sections/$libraryId/all?artist.id=$artistId&type=9")
+    suspend fun getAlbumsForArtist(libraryId: Int, artist: Artist): List<Album> {
+        val albums = httpClient.get("/library/sections/$libraryId/all?artist.id=${artist.id}&type=9")
             .body<Response<MediaContainerMusic>>()
         return albums.MediaContainer.Metadata.mapNotNull {
             it.ratingKey?.let { it1 ->
                 Album(
                     title = it.title,
                     id = it1,
-                    thumb = it.thumb
+                    thumb = it.thumb,
+                    artist = artist.name
                 )
             }
         }
@@ -66,7 +67,7 @@ class PlexApi(
         }
     }
 
-    suspend fun downloadSong(pathKey: String): File {
+    suspend fun downloadSong(pathKey: String, remaining: (Int) -> Unit): File {
         val file = withContext(Dispatchers.IO) {
             File.createTempFile("files", "index")
         }
@@ -85,6 +86,7 @@ class PlexApi(
                 while (!packet.isEmpty) {
                     val bytes = packet.readBytes()
                     file.appendBytes(bytes)
+                    remaining((file.length().toDouble() / (httpResponse.contentLength() ?: 1).toDouble() * 100).toInt())
                 }
             }
             file
