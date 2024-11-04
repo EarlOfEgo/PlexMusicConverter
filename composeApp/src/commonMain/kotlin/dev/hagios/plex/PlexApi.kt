@@ -46,15 +46,15 @@ class PlexApi(
     suspend fun getAllTracksForAlbum(albumId: String): List<Track> {
         val tracks = httpClient.get("/library/metadata/$albumId/children?").body<Response<TrackMediaContainer>>()
 //        println(tracks)
-        return tracks.MediaContainer.Metadata.flatMap { track ->
+        return tracks.MediaContainer.Metadata?.flatMap { track ->
             track.Media.mapNotNull {
                 track.ratingKey?.let { it1 ->
                     Track(
                         title = track.title, ratingKey = it1, format = it.audioCodec, partKey = it.Part.first().key
                     )
                 }
-            }
-        }
+            } ?: emptyList()
+        } ?: emptyList()
     }
 
     suspend fun getMusicCollection(id: Int): MediaContainerMusic {

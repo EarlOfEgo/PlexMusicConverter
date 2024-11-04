@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import org.koin.mp.KoinPlatform.getKoin
 
@@ -27,9 +28,9 @@ fun SettingsScreen(onClose: () -> Unit) {
                 topBar = {
                     TopAppBar(title = { Text("Settings") })
                 }
-            ) { innerPadding ->
+            ) {
                 Column(
-                    modifier = Modifier.padding(innerPadding).fillMaxWidth()
+                    modifier = Modifier.padding(16.dp).fillMaxWidth()
                         .scrollable(rememberScrollState(), orientation = Orientation.Vertical)
                 ) {
                     OutlinedTextField(

@@ -31,6 +31,7 @@ import dev.hagios.plex.PlexRepository
 import dev.hagios.settings.SettingsRepository
 import dev.hagios.settings.SettingsScreen
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.java.KoinJavaComponent.getKoin
@@ -116,6 +117,7 @@ enum class ConversionStatus {
     DONE
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Composable
 private fun ConvertingTracks(
     tracksToConvert: MutableMap<Album, List<Track>>,
@@ -125,8 +127,8 @@ private fun ConvertingTracks(
 ) {
     Window(onCloseRequest = onClose, title = "Converting") {
         MaterialTheme {
-            Scaffold { innerPadding ->
-                Column(Modifier.padding(innerPadding)) {
+            Scaffold {
+                Column(Modifier.padding(16.dp)) {
                     Text("Converting")
                     tracksToConvert.forEach { (album, tracks) ->
                         Row(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
@@ -143,7 +145,7 @@ private fun ConvertingTracks(
                                 var progress by remember { mutableStateOf(0F) }
                                 var conversionStatus by remember { mutableStateOf(ConversionStatus.DOWNLOADING) }
                                 LaunchedEffect(Unit) {
-                                    withContext(Dispatchers.IO) {
+                                    withContext(Dispatchers.IO.limitedParallelism(1)) {
                                         val downloadedFile = repository.downloadTrack(track) {
                                             progress = it.toFloat() / 100
                                         }

@@ -60,7 +60,7 @@ data class Metadata(
 
 @Serializable
 data class TrackMediaContainer(
-    val Metadata: List<TrackMetadata>,
+    val Metadata: List<TrackMetadata>?,
     val allowSync: Boolean,
     val art: String,
     val grandparentRatingKey: Int,
